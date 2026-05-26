@@ -88,6 +88,18 @@ def main() -> int:
     repo_src = str(repo_dir / "src")
     existing_pythonpath = env.get("PYTHONPATH")
     env["PYTHONPATH"] = f"{repo_src}:{existing_pythonpath}" if existing_pythonpath else repo_src
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "-q",
+            "datasets>=2.18",
+            "transformers>=4.40",
+        ],
+        check=True,
+    )
     subprocess.run(cmd, cwd=repo_dir, env=env, check=True)
     return 0
 
