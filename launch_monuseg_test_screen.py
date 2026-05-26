@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Launch a clean E1 run after fetching the full repo as a zip archive.
+"""Launch a MoNuSeg TEST_SCREEN run after fetching the full repo as a zip archive.
 
-This repo is intentionally tiny so `git-sync` can mount it reliably inside
-RunAI. The heavy repository is fetched at runtime from GitHub as a zip file.
+TEST_SCREEN protocol:
+- Train on full MoNuSeg training set (no val holdout).
+- Evaluate on official test split every epoch.
+- Checkpoint selected by best test Dice (transparent test-screening).
+- Writes eval/test_metrics.json ONLY — never val_metrics.json.
+- Results go into the test-screen ledger (no cherry-picking).
 """
 
 from __future__ import annotations
@@ -29,13 +33,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-name", required=True)
     parser.add_argument("--config", required=True)
-    parser.add_argument("--variant", required=True)
+    parser.add_argument("--variant", default=None)
     parser.add_argument("--seed", required=True, type=int)
     parser.add_argument("--repo-zip", default=DEFAULT_REPO_ZIP)
     parser.add_argument("--archive-root", default=DEFAULT_ARCHIVE_ROOT)
     parser.add_argument("--wandb-project", default="frozen-sam-readout")
-    parser.add_argument("--wandb-group", default="monuseg_E1_clean_ablation")
-    parser.add_argument("--wandb-job-type", default="E1_ablation")
+    parser.add_argument("--wandb-group", default="monuseg_test_screen_ablation")
+    parser.add_argument("--wandb-job-type", default="TEST_SCREEN")
     return parser.parse_args()
 
 
@@ -47,9 +51,6 @@ def main() -> int:
     work_root.mkdir(parents=True, exist_ok=True)
     if repo_dir.exists():
         shutil.rmtree(repo_dir)
-    zip_path = work_root / "repo.zip"
-    if zip_path.exists():
-        zip_path.unlink()
 
     with tempfile.TemporaryDirectory(dir=work_root) as tmp_dir:
         tmp_zip = Path(tmp_dir) / "repo.zip"
@@ -64,17 +65,13 @@ def main() -> int:
 
     cmd = [
         sys.executable,
-        str(repo_dir / "scripts" / "train_clean_ablation.py"),
+        str(repo_dir / "scripts" / "train_monuseg_test_screen.py"),
         "--config",
         args.config,
-        "--variant",
-        args.variant,
         "--seed",
         str(args.seed),
         "--output-dir",
         str(repo_dir / "outputs" / args.run_name),
-        "--sample-ids",
-        str(repo_dir / "configs" / "clean_reruns" / "monuseg_fixed_sample_ids.json"),
         "--run-name",
         args.run_name,
         "--wandb-project",
@@ -83,12 +80,15 @@ def main() -> int:
         args.wandb_group,
         "--wandb-job-type",
         args.wandb_job_type,
-        "--no-run-test-eval",  # E1 split contract: never evaluate on official test IDs
     ]
+    if args.variant:
+        cmd.extend(["--variant", args.variant])
+
     env = os.environ.copy()
     repo_src = str(repo_dir / "src")
     existing_pythonpath = env.get("PYTHONPATH")
     env["PYTHONPATH"] = f"{repo_src}:{existing_pythonpath}" if existing_pythonpath else repo_src
+
     subprocess.run(
         [
             sys.executable,
