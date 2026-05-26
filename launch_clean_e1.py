@@ -8,6 +8,7 @@ RunAI. The heavy repository is fetched at runtime from GitHub as a zip file.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -83,7 +84,11 @@ def main() -> int:
         "--wandb-job-type",
         args.wandb_job_type,
     ]
-    subprocess.run(cmd, cwd=repo_dir, check=True)
+    env = os.environ.copy()
+    repo_src = str(repo_dir / "src")
+    existing_pythonpath = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = f"{repo_src}:{existing_pythonpath}" if existing_pythonpath else repo_src
+    subprocess.run(cmd, cwd=repo_dir, env=env, check=True)
     return 0
 
 
