@@ -95,6 +95,7 @@ def main() -> int:
             "pip",
             "install",
             "-q",
+            "--break-system-packages",
             "datasets>=2.18",
             "transformers>=4.40",
         ],
