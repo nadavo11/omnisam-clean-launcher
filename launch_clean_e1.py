@@ -97,6 +97,7 @@ def main() -> int:
             "-q",
             "--break-system-packages",
             "datasets>=2.18",
+            "wandb>=0.17",
             "transformers>=4.40",
         ],
         check=True,
